@@ -79,16 +79,6 @@ def delete_task(task_id: str) -> bool:
     return True
 
 
-def clear_form() -> None:
-    st.session_state["title"] = ""
-    st.session_state["priority"] = "P2"
-    st.session_state["status"] = "todo"
-    st.session_state["due"] = None
-    st.session_state["person"] = ""
-    st.session_state["follow_up"] = None
-    st.session_state["notes"] = ""
-
-
 st.set_page_config(page_title="Workflow Dashboard", layout="wide")
 st.title("Workflow Dashboard")
 
@@ -123,22 +113,24 @@ c5.metric("Waiting", len(waiting))
 
 st.divider()
 
+# Add task: clears fields automatically after submit
 with st.expander("Add a task", expanded=True):
-    colA, colB, colC = st.columns([2, 1, 1])
-    title = colA.text_input("Title", placeholder="What is the next action?", key="title")
-    priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1, key="priority")
-    status = colC.selectbox(
-        "Status", ["todo", "in_progress", "waiting", "done"], index=0, key="status"
-    )
+    with st.form("add_task_form", clear_on_submit=True):
+        colA, colB, colC = st.columns([2, 1, 1])
+        title = colA.text_input("Title", placeholder="What is the next action?")
+        priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1)
+        status = colC.selectbox("Status", ["todo", "in_progress", "waiting", "done"], index=0)
 
-    colD, colE, colF = st.columns(3)
-    due = colD.date_input("Due date (optional)", value=None, key="due")
-    person = colE.text_input("Person (optional)", key="person")
-    follow_up = colF.date_input("Follow up (optional)", value=None, key="follow_up")
+        colD, colE, colF = st.columns(3)
+        due = colD.date_input("Due date (optional)", value=None)
+        person = colE.text_input("Person (optional)")
+        follow_up = colF.date_input("Follow up (optional)", value=None)
 
-    notes = st.text_area("Notes (optional)", height=80, key="notes")
+        notes = st.text_area("Notes (optional)", height=80)
 
-    if st.button("Add task"):
+        submitted = st.form_submit_button("Add task")
+
+    if submitted:
         if not title.strip():
             st.error("Title is required.")
         else:
@@ -157,11 +149,9 @@ with st.expander("Add a task", expanded=True):
             tasks.append(new_task)
             write_tasks(tasks)
             st.success(f"Added task #{new_task['id']}")
-            clear_form()
             st.rerun()
 
 st.divider()
-
 st.subheader("Open tasks")
 
 left, right = st.columns([3, 2])
@@ -172,7 +162,6 @@ with left:
         ["All open", "P1", "Due today", "Overdue", "Waiting", "Follow ups due"],
         index=0,
     )
-
     if show == "All open":
         view_tasks = open_tasks
     elif show == "P1":
@@ -191,7 +180,7 @@ with right:
 
 st.write("")
 
-# Header row
+# Header row (added Delete column)
 h1, h2, h3, h4, h5, h6, h7 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9, 0.9])
 h1.write("**ID**")
 h2.write("**Pri**")
