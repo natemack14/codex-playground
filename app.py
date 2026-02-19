@@ -158,34 +158,44 @@ with left:
         view_tasks = followups
 
 with right:
-    st.write("Mark done")
-    done_id = st.text_input("Task id", placeholder="Example: 3")
-    if st.button("Done"):
-        if done_id.strip():
-            ok = mark_done(done_id.strip())
+    st.caption("Tip: use the View dropdown to focus on urgent tasks.")
+
+st.write("")  # spacing
+
+# Header row
+h1, h2, h3, h4, h5, h6 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9])
+h1.write("**ID**")
+h2.write("**Pri**")
+h3.write("**Due**")
+h4.write("**Title**")
+h5.write("**Person**")
+h6.write("")
+
+st.divider()
+
+if not view_tasks:
+    st.info("No tasks in this view.")
+else:
+    for t in view_tasks:
+        c1, c2, c3, c4, c5, c6 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9])
+
+        task_id = t.get("id", "")
+        pri = t.get("priority", "")
+        due = t.get("due_date", "") or "-"
+        title = t.get("title", "")
+        person = t.get("person", "") or "-"
+
+        c1.write(task_id)
+        c2.write(pri)
+        c3.write(due)
+        c4.write(title)
+        c5.write(person)
+
+        if c6.button("Done", key=f"done_{task_id}"):
+            ok = mark_done(task_id)
             if ok:
-                st.success(f"Marked task #{done_id} done")
+                st.success(f"Marked task #{task_id} done")
                 st.rerun()
             else:
-                st.error("Task id not found.")
-        else:
-            st.error("Enter a task id.")
-
-def table_rows(ts: list[dict]) -> list[dict]:
-    rows = []
-    for t in ts:
-        rows.append(
-            {
-                "id": t.get("id", ""),
-                "priority": t.get("priority", ""),
-                "status": t.get("status", ""),
-                "due": t.get("due_date", ""),
-                "title": t.get("title", ""),
-                "person": t.get("person", ""),
-                "follow_up": t.get("follow_up_date", ""),
-            }
-        )
-    return rows
-
-st.dataframe(table_rows(view_tasks), use_container_width=True, hide_index=True)
+                st.error("Task not found.")
 
