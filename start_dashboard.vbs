@@ -1,4 +1,5 @@
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "cmd /c start_dashboard.bat", 0
+WshShell.Run chr(34) & "start_dashboard.bat" & chr(34), 0, False
 Set WshShell = Nothing
+
 
