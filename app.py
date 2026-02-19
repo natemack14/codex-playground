@@ -1,0 +1,191 @@
+import csv
+import datetime as dt
+from pathlib import Path
+
+import streamlit as st
+
+ROOT = Path(__file__).resolve().parent
+DATA_FILE = ROOT / "data" / "tasks.csv"
+
+FIELDNAMES = [
+    "id",
+    "title",
+    "priority",
+    "status",
+    "due_date",
+    "created_date",
+    "person",
+    "waiting_on",
+    "follow_up_date",
+    "notes",
+]
+
+
+def ensure_file() -> None:
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    if not DATA_FILE.exists():
+        with DATA_FILE.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+            writer.writeheader()
+
+
+def read_tasks() -> list[dict]:
+    ensure_file()
+    with DATA_FILE.open("r", newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def write_tasks(tasks: list[dict]) -> None:
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with DATA_FILE.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(tasks)
+
+
+def next_id(tasks: list[dict]) -> int:
+    if not tasks:
+        return 1
+    ids = [int(t["id"]) for t in tasks if str(t.get("id", "")).isdigit()]
+    return (max(ids) + 1) if ids else 1
+
+
+def parse_date(value: str) -> dt.date | None:
+    if not value:
+        return None
+    try:
+        return dt.datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def mark_done(task_id: str) -> bool:
+    tasks = read_tasks()
+    for t in tasks:
+        if t["id"] == str(task_id):
+            t["status"] = "done"
+            write_tasks(tasks)
+            return True
+    return False
+
+
+st.set_page_config(page_title="Workflow Dashboard", layout="wide")
+st.title("Workflow Dashboard")
+
+tasks = read_tasks()
+today = dt.date.today()
+
+open_tasks = [t for t in tasks if t.get("status") != "done"]
+p1_tasks = [t for t in open_tasks if t.get("priority") == "P1"]
+due_today = [
+    t for t in open_tasks if (d := parse_date(t.get("due_date", ""))) is not None and d == today
+]
+overdue = [
+    t for t in open_tasks if (d := parse_date(t.get("due_date", ""))) is not None and d < today
+]
+waiting = [t for t in open_tasks if t.get("status") == "waiting"]
+followups = [
+    t for t in open_tasks if (d := parse_date(t.get("follow_up_date", ""))) is not None and d <= today
+]
+
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Open", len(open_tasks))
+c2.metric("P1", len(p1_tasks))
+c3.metric("Due today", len(due_today))
+c4.metric("Overdue", len(overdue))
+c5.metric("Waiting", len(waiting))
+
+st.divider()
+
+with st.expander("Add a task", expanded=True):
+    colA, colB, colC = st.columns([2, 1, 1])
+    title = colA.text_input("Title", placeholder="What is the next action?")
+    priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1)
+    status = colC.selectbox("Status", ["todo", "in_progress", "waiting", "done"], index=0)
+
+    colD, colE, colF = st.columns(3)
+    due = colD.date_input("Due date (optional)", value=None)
+    person = colE.text_input("Person (optional)")
+    follow_up = colF.date_input("Follow up (optional)", value=None)
+
+    notes = st.text_area("Notes (optional)", height=80)
+
+    if st.button("Add task"):
+        if not title.strip():
+            st.error("Title is required.")
+        else:
+            new_task = {
+                "id": str(next_id(tasks)),
+                "title": title.strip(),
+                "priority": priority,
+                "status": status,
+                "due_date": due.isoformat() if due else "",
+                "created_date": dt.date.today().isoformat(),
+                "person": person.strip() if person else "",
+                "waiting_on": "",
+                "follow_up_date": follow_up.isoformat() if follow_up else "",
+                "notes": notes.strip() if notes else "",
+            }
+            tasks.append(new_task)
+            write_tasks(tasks)
+            st.success(f"Added task #{new_task['id']}")
+            st.rerun()
+
+st.divider()
+
+st.subheader("Open tasks")
+
+left, right = st.columns([3, 2])
+
+with left:
+    show = st.selectbox(
+        "View",
+        ["All open", "P1", "Due today", "Overdue", "Waiting", "Follow ups due"],
+        index=0,
+    )
+
+    if show == "All open":
+        view_tasks = open_tasks
+    elif show == "P1":
+        view_tasks = p1_tasks
+    elif show == "Due today":
+        view_tasks = due_today
+    elif show == "Overdue":
+        view_tasks = overdue
+    elif show == "Waiting":
+        view_tasks = waiting
+    else:
+        view_tasks = followups
+
+with right:
+    st.write("Mark done")
+    done_id = st.text_input("Task id", placeholder="Example: 3")
+    if st.button("Done"):
+        if done_id.strip():
+            ok = mark_done(done_id.strip())
+            if ok:
+                st.success(f"Marked task #{done_id} done")
+                st.rerun()
+            else:
+                st.error("Task id not found.")
+        else:
+            st.error("Enter a task id.")
+
+def table_rows(ts: list[dict]) -> list[dict]:
+    rows = []
+    for t in ts:
+        rows.append(
+            {
+                "id": t.get("id", ""),
+                "priority": t.get("priority", ""),
+                "status": t.get("status", ""),
+                "due": t.get("due_date", ""),
+                "title": t.get("title", ""),
+                "person": t.get("person", ""),
+                "follow_up": t.get("follow_up_date", ""),
+            }
+        )
+    return rows
+
+st.dataframe(table_rows(view_tasks), use_container_width=True, hide_index=True)
+
