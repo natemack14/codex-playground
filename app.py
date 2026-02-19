@@ -62,7 +62,7 @@ def parse_date(value: str) -> dt.date | None:
 def mark_done(task_id: str) -> bool:
     tasks = read_tasks()
     for t in tasks:
-        if t["id"] == str(task_id):
+        if t.get("id") == str(task_id):
             t["status"] = "done"
             write_tasks(tasks)
             return True
@@ -78,14 +78,20 @@ today = dt.date.today()
 open_tasks = [t for t in tasks if t.get("status") != "done"]
 p1_tasks = [t for t in open_tasks if t.get("priority") == "P1"]
 due_today = [
-    t for t in open_tasks if (d := parse_date(t.get("due_date", ""))) is not None and d == today
+    t
+    for t in open_tasks
+    if (d := parse_date(t.get("due_date", ""))) is not None and d == today
 ]
 overdue = [
-    t for t in open_tasks if (d := parse_date(t.get("due_date", ""))) is not None and d < today
+    t
+    for t in open_tasks
+    if (d := parse_date(t.get("due_date", ""))) is not None and d < today
 ]
 waiting = [t for t in open_tasks if t.get("status") == "waiting"]
 followups = [
-    t for t in open_tasks if (d := parse_date(t.get("follow_up_date", ""))) is not None and d <= today
+    t
+    for t in open_tasks
+    if (d := parse_date(t.get("follow_up_date", ""))) is not None and d <= today
 ]
 
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -97,20 +103,24 @@ c5.metric("Waiting", len(waiting))
 
 st.divider()
 
+# ---- Add task (clears fields after successful submit) ----
 with st.expander("Add a task", expanded=True):
-    colA, colB, colC = st.columns([2, 1, 1])
-    title = colA.text_input("Title", placeholder="What is the next action?", key="title")
-    priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1, key="priority")
-    status = colC.selectbox("Status", ["todo", "in_progress", "waiting", "done"], index=0, key="status")
+    with st.form("add_task_form", clear_on_submit=True):
+        colA, colB, colC = st.columns([2, 1, 1])
+        title = colA.text_input("Title", placeholder="What is the next action?")
+        priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1)
+        status = colC.selectbox("Status", ["todo", "in_progress", "waiting", "done"], index=0)
 
-    colD, colE, colF = st.columns(3)
-    due = colD.date_input("Due date (optional)", value=None, key="due")
-    person = colE.text_input("Person (optional)", key="person")
-    follow_up = colF.date_input("Follow up (optional)", value=None, key="follow_up")
+        colD, colE, colF = st.columns(3)
+        due = colD.date_input("Due date (optional)", value=None)
+        person = colE.text_input("Person (optional)")
+        follow_up = colF.date_input("Follow up (optional)", value=None)
 
-    notes = st.text_area("Notes (optional)", height=80, key="notes")
+        notes = st.text_area("Notes (optional)", height=80)
 
-    if st.button("Add task"):
+        submitted = st.form_submit_button("Add task")
+
+    if submitted:
         if not title.strip():
             st.error("Title is required.")
         else:
@@ -126,20 +136,9 @@ with st.expander("Add a task", expanded=True):
                 "follow_up_date": follow_up.isoformat() if follow_up else "",
                 "notes": notes.strip() if notes else "",
             }
-
             tasks.append(new_task)
             write_tasks(tasks)
-
             st.success(f"Added task #{new_task['id']}")
-
-            st.session_state["title"] = ""
-            st.session_state["priority"] = "P2"
-            st.session_state["status"] = "todo"
-            st.session_state["due"] = None
-            st.session_state["person"] = ""
-            st.session_state["follow_up"] = None
-            st.session_state["notes"] = ""
-
             st.rerun()
 
 st.divider()
@@ -171,7 +170,7 @@ with left:
 with right:
     st.caption("Tip: use the View dropdown to focus on urgent tasks.")
 
-st.write("")  # spacing
+st.write("")
 
 # Header row
 h1, h2, h3, h4, h5, h6 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9])
@@ -209,4 +208,3 @@ else:
                 st.rerun()
             else:
                 st.error("Task not found.")
-
