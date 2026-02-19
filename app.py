@@ -4,13 +4,6 @@ from pathlib import Path
 
 import streamlit as st
 
-def find_project_root(start: Path) -> Path:
-    start = start.resolve()
-    for p in [start.parent, *start.parents]:
-        if (p / "app.py").exists() or (p / "requirements.txt").exists():
-            return p
-    return start.parent
-
 ROOT = find_project_root(Path(__file__))
 DATA_FILE = ROOT / "data" / "tasks.csv"
 
