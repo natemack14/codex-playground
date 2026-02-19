@@ -69,6 +69,26 @@ def mark_done(task_id: str) -> bool:
     return False
 
 
+def delete_task(task_id: str) -> bool:
+    tasks = read_tasks()
+    before = len(tasks)
+    tasks = [t for t in tasks if t.get("id") != str(task_id)]
+    if len(tasks) == before:
+        return False
+    write_tasks(tasks)
+    return True
+
+
+def clear_form() -> None:
+    st.session_state["title"] = ""
+    st.session_state["priority"] = "P2"
+    st.session_state["status"] = "todo"
+    st.session_state["due"] = None
+    st.session_state["person"] = ""
+    st.session_state["follow_up"] = None
+    st.session_state["notes"] = ""
+
+
 st.set_page_config(page_title="Workflow Dashboard", layout="wide")
 st.title("Workflow Dashboard")
 
@@ -103,24 +123,22 @@ c5.metric("Waiting", len(waiting))
 
 st.divider()
 
-# ---- Add task (clears fields after successful submit) ----
 with st.expander("Add a task", expanded=True):
-    with st.form("add_task_form", clear_on_submit=True):
-        colA, colB, colC = st.columns([2, 1, 1])
-        title = colA.text_input("Title", placeholder="What is the next action?")
-        priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1)
-        status = colC.selectbox("Status", ["todo", "in_progress", "waiting", "done"], index=0)
+    colA, colB, colC = st.columns([2, 1, 1])
+    title = colA.text_input("Title", placeholder="What is the next action?", key="title")
+    priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1, key="priority")
+    status = colC.selectbox(
+        "Status", ["todo", "in_progress", "waiting", "done"], index=0, key="status"
+    )
 
-        colD, colE, colF = st.columns(3)
-        due = colD.date_input("Due date (optional)", value=None)
-        person = colE.text_input("Person (optional)")
-        follow_up = colF.date_input("Follow up (optional)", value=None)
+    colD, colE, colF = st.columns(3)
+    due = colD.date_input("Due date (optional)", value=None, key="due")
+    person = colE.text_input("Person (optional)", key="person")
+    follow_up = colF.date_input("Follow up (optional)", value=None, key="follow_up")
 
-        notes = st.text_area("Notes (optional)", height=80)
+    notes = st.text_area("Notes (optional)", height=80, key="notes")
 
-        submitted = st.form_submit_button("Add task")
-
-    if submitted:
+    if st.button("Add task"):
         if not title.strip():
             st.error("Title is required.")
         else:
@@ -139,6 +157,7 @@ with st.expander("Add a task", expanded=True):
             tasks.append(new_task)
             write_tasks(tasks)
             st.success(f"Added task #{new_task['id']}")
+            clear_form()
             st.rerun()
 
 st.divider()
@@ -173,13 +192,14 @@ with right:
 st.write("")
 
 # Header row
-h1, h2, h3, h4, h5, h6 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9])
+h1, h2, h3, h4, h5, h6, h7 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9, 0.9])
 h1.write("**ID**")
 h2.write("**Pri**")
 h3.write("**Due**")
 h4.write("**Title**")
 h5.write("**Person**")
 h6.write("")
+h7.write("")
 
 st.divider()
 
@@ -187,24 +207,30 @@ if not view_tasks:
     st.info("No tasks in this view.")
 else:
     for t in view_tasks:
-        c1, c2, c3, c4, c5, c6 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9])
+        c1, c2, c3, c4, c5, c6, c7 = st.columns([0.6, 0.7, 1.1, 3.5, 1.4, 0.9, 0.9])
 
         task_id = t.get("id", "")
         pri = t.get("priority", "")
-        due = t.get("due_date", "") or "-"
-        title = t.get("title", "")
-        person = t.get("person", "") or "-"
+        due_val = t.get("due_date", "") or "-"
+        title_val = t.get("title", "")
+        person_val = t.get("person", "") or "-"
 
         c1.write(task_id)
         c2.write(pri)
-        c3.write(due)
-        c4.write(title)
-        c5.write(person)
+        c3.write(due_val)
+        c4.write(title_val)
+        c5.write(person_val)
 
         if c6.button("Done", key=f"done_{task_id}"):
-            ok = mark_done(task_id)
-            if ok:
+            if mark_done(task_id):
                 st.success(f"Marked task #{task_id} done")
+                st.rerun()
+            else:
+                st.error("Task not found.")
+
+        if c7.button("Delete", key=f"del_{task_id}"):
+            if delete_task(task_id):
+                st.success(f"Deleted task #{task_id}")
                 st.rerun()
             else:
                 st.error("Task not found.")
