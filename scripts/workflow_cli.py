@@ -143,6 +143,24 @@ def dashboard(_: argparse.Namespace) -> None:
 def init_data(_: argparse.Namespace) -> None:
     ensure_file()
     print(f"Initialized: {DATA_FILE}")
+    
+def mark_done(args: argparse.Namespace) -> None:
+    tasks = read_tasks()
+    target = str(args.id)
+    updated = False
+
+    for t in tasks:
+        if t["id"] == target:
+            t["status"] = "done"
+            updated = True
+            print(f"Marked task #{t['id']} done: {t['title']}")
+            break
+
+    if not updated:
+        print(f"No task found with id {target}")
+        return
+
+    write_tasks(tasks)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -172,6 +190,10 @@ def build_parser() -> argparse.ArgumentParser:
     list_cmd.add_argument("--priority", choices=["P1", "P2", "P3"])
     list_cmd.set_defaults(func=list_tasks)
 
+    done_cmd = sub.add_parser("done", help="Mark a task as done")
+    done_cmd.add_argument("id", type=int, help="Task id")
+    done_cmd.set_defaults(func=mark_done)
+    
     dash_cmd = sub.add_parser("dashboard", help="Show summary dashboard")
     dash_cmd.set_defaults(func=dashboard)
 
