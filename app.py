@@ -100,14 +100,15 @@ st.divider()
 with st.expander("Add a task", expanded=True):
     colA, colB, colC = st.columns([2, 1, 1])
     title = colA.text_input("Title", placeholder="What is the next action?", key="title")
-priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1, key="priority")
-status = colC.selectbox("Status", ["todo", "in_progress", "waiting", "done"], index=0, key="status")
+    priority = colB.selectbox("Priority", ["P1", "P2", "P3"], index=1, key="priority")
+    status = colC.selectbox("Status", ["todo", "in_progress", "waiting", "done"], index=0, key="status")
 
-due = colD.date_input("Due date (optional)", value=None, key="due")
-person = colE.text_input("Person (optional)", key="person")
-follow_up = colF.date_input("Follow up (optional)", value=None, key="follow_up")
+    colD, colE, colF = st.columns(3)
+    due = colD.date_input("Due date (optional)", value=None, key="due")
+    person = colE.text_input("Person (optional)", key="person")
+    follow_up = colF.date_input("Follow up (optional)", value=None, key="follow_up")
 
-notes = st.text_area("Notes (optional)", height=80, key="notes")
+    notes = st.text_area("Notes (optional)", height=80, key="notes")
 
     if st.button("Add task"):
         if not title.strip():
@@ -125,16 +126,20 @@ notes = st.text_area("Notes (optional)", height=80, key="notes")
                 "follow_up_date": follow_up.isoformat() if follow_up else "",
                 "notes": notes.strip() if notes else "",
             }
+
             tasks.append(new_task)
             write_tasks(tasks)
+
             st.success(f"Added task #{new_task['id']}")
-st.session_state["title"] = ""
-st.session_state["priority"] = "P2"
-st.session_state["status"] = "todo"
-st.session_state["due"] = None
-st.session_state["person"] = ""
-st.session_state["follow_up"] = None
-st.session_state["notes"] = ""
+
+            st.session_state["title"] = ""
+            st.session_state["priority"] = "P2"
+            st.session_state["status"] = "todo"
+            st.session_state["due"] = None
+            st.session_state["person"] = ""
+            st.session_state["follow_up"] = None
+            st.session_state["notes"] = ""
+
             st.rerun()
 
 st.divider()
